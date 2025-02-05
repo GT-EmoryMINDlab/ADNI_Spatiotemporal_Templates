@@ -1,236 +1,62 @@
+%% ========================================================================
+%  Compute and Display Correlation Matrix Across All QPP Templates
+%  ========================================================================
+%  This script aggregates QPP templates from different cohorts and 
+%  computes a correlation matrix across all 105 networks in each template.
 
+% ========================================================================
+%  Load and Organize QPP Templates
+% ========================================================================
+%  The script retrieves QPP data from the `QPP_templates` structure and 
+%  arranges them for correlation computation.
 
-%%
+% Define cohort template names
+templateNames = {'ADNI_sNC_QPP', 'ADNI_sMCI_QPP', 'ADNI_sDAT_QPP', ...
+                 'ADNI_uNC_pre_QPP', 'ADNI_uNC_post_QPP', ...
+                 'ADNI_pMCI_pre_QPP', 'ADNI_pMCI_post_QPP'};
 
+% Initialize an empty array to store all network data
+allNetworks = [];
 
-% Define the matrices
-GrpSn = ADNI_NC_D1; % Replace with your time series matrix
-qpp = ADNI_uNC_pre_QPP_rev(:,5:12);    % Replace with your pattern template
-trrr = 3;
-corr_thresh = 0.2;
-
-% Dimensions
-[~, time_length] = size(GrpSn);
-[~, template_length] = size(qpp);
-
-% Initialize counters and storage for correlations
-count_above_0_2 = 0;
-count_below_neg_0_2 = 0;
-correlation_values = zeros(1, time_length - template_length + 1);
-
-% Sliding window correlation
-for t = 1:(time_length - template_length + 1)
-    % Extract the current window from the time series
-    current_window = GrpSn(:, t:(t + template_length - 1));
+% Extract QPP templates dynamically from `QPP_templates` structure
+for t = 1:numel(templateNames)
+    templateName = templateNames{t};
     
-    % Compute correlation between the template and the current window
-    r = corr(current_window(:), qpp(:));
-    correlation_values(t) = r; % Store correlation
-    
-    % Check the threshold conditions
-    if r > corr_thresh
-        count_above_0_2 = count_above_0_2 + 1;
-    elseif r < -corr_thresh
-        count_below_neg_0_2 = count_below_neg_0_2 + 1;
+    if isfield(QPP_templates, templateName)
+        % Retrieve and transpose QPP data for concatenation
+        currentQPP = QPP_templates.(templateName)';
+        allNetworks = [allNetworks, currentQPP]; % Concatenate across templates
+    else
+        warning('QPP template "%s" not found in QPP_templates.', templateName);
     end
 end
 
-% Calculate the total minutes in the time series
-total_minutes = (time_length * trrr) / 60;
+% ========================================================================
+%  Compute Correlation Matrix Across All Templates
+% ========================================================================
+%  This section calculates the correlation matrix for the aggregated
+%  QPP data across all templates.
 
-% Calculate occurrences per minute
-occurrences_above_0_2_per_min = count_above_0_2 / total_minutes;
-occurrences_below_neg_0_2_per_min = count_below_neg_0_2 / total_minutes;
-
-% Display the results
-fprintf('Number of occurrences where correlation > 0.2: %d\n', count_above_0_2);
-fprintf('Number of occurrences where correlation < -0.2: %d\n', count_below_neg_0_2);
-fprintf('Occurrences per minute where correlation > 0.2: %.2f\n', occurrences_above_0_2_per_min);
-fprintf('Occurrences per minute where correlation < -0.2: %.2f\n', occurrences_below_neg_0_2_per_min);
-
-% Plot and save the correlation values
-figure;
-plot(correlation_values, 'LineWidth', 1.5);
-xlabel('Window Index');
-ylabel('Correlation');
-title('Correlation Values Across Sliding Windows');
-grid on;
-saveas(gcf, 'correlation_plot.png'); % Save the plot as a PNG
-
-% Plot and save the histogram of correlation values
-figure;
-histogram(correlation_values, 'BinWidth', 0.05, 'FaceColor', 'blue', 'EdgeColor', 'black');
-xlabel('Correlation Value');
-ylabel('Frequency');
-title('Histogram of Correlation Values');
-grid on;
-saveas(gcf, 'correlation_histogram.png'); % Save the histogram as a PNG
-
-
-
-% Dimensions
-[~, time_length] = size(GrpSn);
-[~, template_length] = size(qpp);
-
-% Initialize storage for correlations
-correlation_values = zeros(1, time_length - template_length + 1);
-
-% Sliding window correlation
-for t = 1:(time_length - template_length + 1)
-    % Extract the current window from the time series
-    current_window = GrpSn(:, t:(t + template_length - 1));
-    
-    % Compute correlation between the template and the current window
-    r = corr(current_window(:), qpp(:));
-    correlation_values(t) = r; % Store correlation
-end
-
-% Identify indices where correlation exceeds thresholds
-above_threshold_indices = find(correlation_values > corr_thresh);
-below_threshold_indices = find(correlation_values < -corr_thresh);
-
-% Combine indices and sort
-all_threshold_indices = sort([above_threshold_indices, below_threshold_indices]);
-
-% Calculate dwell times between instances
-dwell_times = diff(all_threshold_indices) * trrr; % Time gaps in seconds
-
-% Calculate average dwell time
-average_dwell_time = mean(dwell_times);
-
-% Display results
-fprintf('Average dwell time between instances: %.2f seconds\n', average_dwell_time);
-fprintf('Number of dwell time intervals: %d\n', length(dwell_times));
-
-% Plot and save the correlation values
-figure;
-plot(correlation_values, 'LineWidth', 1.5);
-xlabel('Window Index');
-ylabel('Correlation');
-title('Correlation Values Across Sliding Windows');
-grid on;
-saveas(gcf, 'correlation_plot_with_dwell.png'); % Save the plot as a PNG
-
-% Plot histogram of dwell times
-figure;
-histogram(dwell_times, 'BinWidth', 1, 'FaceColor', 'blue', 'EdgeColor', 'black');
-xlabel('Dwell Time Between Instances (seconds)');
-ylabel('Frequency');
-title('Histogram of Dwell Times Between Instances');
-set(gca, 'YScale', 'log'); % Set y-axis to log scale
-grid on;
-saveas(gcf, 'dwell_time_histogram.png'); % Save the histogram as a PNG
-
-
-%%
-
-% Define network ROIs
-CB_rois = 1:13;
-VI_rois = 14:25;
-PL_rois = 26:36;
-SC_rois = 36:54;
-SM_rois = 55:68;
-HC_rois = 69:90;
-TN_rois = 91:105;
-
-% define QPP templates that you wish to compare
-QPP_templates = {HCP_NC_long_QPP, ADNI_DAT_US_QPP, ADNI_MCI_US_QPP, ADNI_NC_US_QPP};
-
-% Predefine storage for all networks across templates
-allNetworks = [];
-allLabels = [];
-networkNames = {'CB', 'VI', 'PL', 'SC', 'SM', 'HC', 'TN'};
-
-% Loop through each QPP template
-for t = 1:length(QPP_templates)
-    % Extract the current template
-    currentQPP = QPP_templates{t};
-
-    % Perform domain-wise summation and normalization
-    CB = squeeze(sum(currentQPP(CB_rois, :), 1)) / size(currentQPP(CB_rois, :), 1);
-    VI = squeeze(sum(currentQPP(VI_rois, :), 1)) / size(currentQPP(VI_rois, :), 1);
-    PL = squeeze(sum(currentQPP(PL_rois, :), 1)) / size(currentQPP(PL_rois, :), 1);
-    SC = squeeze(sum(currentQPP(SC_rois, :), 1)) / size(currentQPP(SC_rois, :), 1);
-    SM = squeeze(sum(currentQPP(SM_rois, :), 1)) / size(currentQPP(SM_rois, :), 1);
-    HC = squeeze(sum(currentQPP(HC_rois, :), 1)) / size(currentQPP(HC_rois, :), 1);
-    TN = squeeze(sum(currentQPP(TN_rois, :), 1)) / size(currentQPP(TN_rois, :), 1);
-
-    % Combine networks into a matrix
-    networks = [CB; VI; PL; SC; SM; HC; TN];
-
-    % Append to the overall networks matrix
-    allNetworks = [allNetworks; networks];
-
-    % Append corresponding labels
-    allLabels = [allLabels; strcat(networkNames, sprintf('_T%d', t))'];
-end
-
-% Compute the correlation matrix for all networks
-corrMatrix = corr(allNetworks');
-
-% Plot the correlation matrix using imagesc
-figure;
-imagesc(corrMatrix);
-colorbar;
-colormap('jet');
-caxis([-1, 1]);
-
-% Label each network on the axes
-set(gca, 'XTick', 1:size(allNetworks, 1), 'XTickLabel', allLabels, 'YTick', 1:size(allNetworks, 1), 'YTickLabel', allLabels, 'TickLabelInterpreter', 'none');
-xtickangle(45);
-
-% Display the correlation value in each box
-for i = 1:size(allNetworks, 1)
-    for j = 1:size(allNetworks, 1)
-        text(j, i, sprintf('%.2f', corrMatrix(i, j)), 'HorizontalAlignment', 'center', 'Color', 'w');
-    end
-end
-
-% Add title
-title('Correlation Matrix of Domain Networks Across Templates');
-
-
-%%
-
-% Define network ROIs
-CB_rois = 1:13;
-VI_rois = 14:25;
-PL_rois = 26:36;
-SC_rois = 37:54;
-SM_rois = 55:68;
-HC_rois = 69:90;
-TN_rois = 91:105;
-
-% QPP templates
-%QPP_templates = {ADNI_ALL_DATA_CONCAT_QPP, ADNI_uNC_pre_QPP, ADNI_NC_QPP, ADNI_uNC_post_QPP, ADNI_pMCI_pre_QPP, ADNI_MCI_QPP, ADNI_pMCI_post_QPP, ADNI_DAT_QPP};
-%QPP_templates = {ADNI_NC_QPP, ADNI_MCI_QPP, ADNI_DAT_QPP, ADNI_uNC_pre_QPP_rev, ADNI_uNC_post_QPP, ADNI_pMCI_pre_QPP, ADNI_pMCI_post_QPP, };
-QPP_templates = {ADNI_NC_QPP};
-
-% Concatenate all networks from each template
-allNetworks = [];
-
-for t = 1:length(QPP_templates)
-    % Extract the current template
-    currentQPP = QPP_templates{t}';
-
-    % Append the entire network data for the template
-    allNetworks = [allNetworks, currentQPP];
-end
-
-% Compute the correlation matrix for all networks
+% Compute the correlation matrix
 corrMatrix = corr(allNetworks);
 
-% Plot the correlation matrix using imagesc
+% ========================================================================
+%  Plot Correlation Matrix Across Templates
+% ========================================================================
+%  This section visualizes the correlation matrix, adding gridlines
+%  to separate different QPP templates.
+
 figure;
 imagesc(corrMatrix);
 colorbar;
 colormap('jet');
 caxis([-1, 1]);
 
-% Add lines between templates
+% Add lines between templates to visually separate them
 hold on;
-templateSize = size(QPP_templates{1}, 1);
-for t = 1:length(QPP_templates) - 1
+templateSize = size(QPP_templates.(templateNames{1}), 1); % Assuming all templates have 105 networks
+
+for t = 1:numel(templateNames) - 1
     linePos = t * templateSize;
     xline(linePos, 'k-', 'LineWidth', 5);
     yline(linePos, 'k-', 'LineWidth', 5);
@@ -241,64 +67,79 @@ hold off;
 % Add title
 title('Correlation Matrix of All 105 Networks Across Templates');
 
+% Save figure
+saveas(gcf, 'plots/m2_qpp_template_correlation_matrix.png'); 
+
+
 
 %%
 
+%% ========================================================================
+%  Compute and Compare QPP Network Correlations
+%  ========================================================================
 
-% Example Matrices (Replace with your actual data)
-A = corr(ADNI_NC_QPP', ADNI_NC_QPP');  % Matrix A (example random data)
-B = corr(ADNI_DAT_QPP', ADNI_DAT_QPP');  % Matrix B (example random data)
+% ========================================================================
+%  Load and Compute Correlation Matrices for QPP Templates
+% ========================================================================
 
-% Assuming matrices A and B of the same size (NxN)
-diff_mat = A - B;
-p_values = arrayfun(@(i) signrank(A(i), B(i)), 1:numel(A));
-p_values = reshape(p_values, size(A));
+% Define the two templates for comparison
+templateA = 'ADNI_uNC_pre_QPP';
+templateB = 'ADNI_pMCI_post_QPP';
 
+% Retrieve QPP data dynamically
+if isfield(QPP_templates, templateA)
+    A_QPP = QPP_templates.(templateA)(:, 5:12);
+else
+    error('Template "%s" not found in QPP_templates.', templateA);
+end
 
+if isfield(QPP_templates, templateB)
+    B_QPP = QPP_templates.(templateB)(:, 5:12);
+else
+    error('Template "%s" not found in QPP_templates.', templateB);
+end
 
+% Compute correlation matrices
+A = corr(A_QPP');
+B = corr(B_QPP');
+A_minus_B = A - B; % Difference matrix
+
+% ========================================================================
+%  Plot Correlation Matrices for QPP Templates
+% ========================================================================
 figure;
-heatmap(diff_mat);
-title('Element-wise Difference Heatmap');
+subplot(1,3,1);
+imagesc(A);
+axis square; axis off;
+title(['Correlation: ', templateA]);
+
+subplot(1,3,2);
+imagesc(B);
+axis square; axis off;
+title(['Correlation: ', templateB]);
+
+subplot(1,3,3);
+imagesc(A_minus_B);
+axis square; axis off;
+title('Difference (A - B)');
+
+colormap('jet');
+
+% Save figure
+saveas(gcf, 'plots/m2_qpp_correlation_comparison.png'); 
 
 
-%%
+% ========================================================================
+%  Compute Variance and Statistical Analysis
+% ========================================================================
+% Compute variance across networks
+network_variances = var(A_minus_B, 0, 2); % Row-wise variance
 
-A = corr(ADNI_uNC_pre_QPP(:,5:12)', ADNI_uNC_pre_QPP(:,5:12)');
-B = corr(ADNI_pMCI_post_QPP(:,5:12)', ADNI_pMCI_post_QPP(:,5:12)');
-A_minus_B = A-B;
-
-
-
-figure,
-
-subplot(1,3,1), 
-imagesc(A), 
-axis square;
-axis off;
-
-subplot(1,3,2), 
-imagesc(B),
-axis square;
-axis off;
-
-subplot(1,3,3),
-
-imagesc(A_minus_B), 
-
-
-axis square;
-axis off;
-
-
-colormap('jet')
-
-
-% Assuming you have a vector of variances, one per network
-network_variances = var(A_minus_B, 0, 2); % Row-wise variance of A - B
-expected_variance = mean(network_variances); % Null hypothesis: Variances follow an expected mean
+% Expected variance (null hypothesis)
+expected_variance = mean(network_variances);
 
 % Chi-square test per network
-df = 104; % Degrees of freedom (N-1 where N=105 samples)
+df = 104; % Degrees of freedom (N-1 where N=105)
 chi_sq_values = (network_variances / expected_variance) * df; % Compute chi-square statistic
 p_values = 1 - chi2cdf(chi_sq_values, df); % Right-tailed test
 
@@ -309,41 +150,14 @@ significant_networks = find(p_values < 0.05);
 disp('Significant Networks:');
 disp(significant_networks);
 
+% ========================================================================
+%  Plot Network Variance Differences
+% ========================================================================
 
-% Define domains
-CB_rois = 1:13;
-VI_rois = 14:25;
-PL_rois = 26:36;
-SC_rois = 37:54;
-SM_rois = 55:68;
-HC_rois = 69:90;
-TN_rois = 91:105;
-
-% Define subdomain ROIs
-CB_CB_rois = 1:13;
-VI_OT_rois = 14:19;
-VI_OC_rois = 20:25;
-PL_PL_rois = 26:36;
-SC_EH_rois = 37:39;
-SC_ET_rois = 40:45;
-SC_BG_rois = 46:54;
-SM_SM_rois = 55:68;
-HC_IT_rois = 69:75;
-HC_TP_rois = 76:80;
-HC_FR_rois = 81:90;
-TN_CE_rois = 91:93;
-TN_DN_rois = 94:101;
-TN_SN_rois = 102:105;
-
-% Group all domains and subdomains
-roi_domains = {CB_rois, VI_rois, PL_rois, SC_rois, SM_rois, HC_rois, TN_rois};
-roi_subdomains = {CB_CB_rois, VI_OT_rois, VI_OC_rois, PL_PL_rois, SC_EH_rois, SC_ET_rois, SC_BG_rois, ...
-                  SM_SM_rois, HC_IT_rois, HC_TP_rois, HC_FR_rois, TN_CE_rois, TN_DN_rois, TN_SN_rois};
-
-% Define domain boundaries (used for bar coloring)
+% Define domain boundaries for coloring
 domain_boundaries = [13, 25, 36, 54, 68, 90, 105];
 
-% Define subdomain boundaries (used for vertical lines)
+% Define subdomain boundaries for vertical markers
 subdomain_boundaries = [13, 19, 25, 36, 39, 45, 54, 68, 75, 80, 90, 93, 101, 105];
 
 % Define custom colors for each domain (normalized RGB values)
@@ -357,14 +171,15 @@ custom_colors = [
     255, 128, 0   % Pink-Yellow (TN)
 ] / 255; % Normalize to [0,1] range for MATLAB
 
+
 % Create bar graph
 figure;
-b = bar(network_variances, 'FaceColor', 'flat'); % Enable individual coloring
+b = bar(network_variances, 'FaceColor', 'flat'); 
 hold on;
 
-% Assign colors to bars based on their domain
-for i = 1:length(roi_domains)
-    idx = roi_domains{i}; % Get indices of current domain
+% Assign colors to bars based on domain structure
+for i = 1:numel(Networks)
+    idx = Networks(i).ICNs; % Get indices for this domain
     b.CData(idx, :) = repmat(custom_colors(i, :), length(idx), 1); % Assign color
 end
 
@@ -373,249 +188,70 @@ scatter(significant_networks, network_variances(significant_networks), 75, 'r', 
 
 % Add vertical black lines at subdomain boundaries
 for i = 1:length(subdomain_boundaries)
-    xline(subdomain_boundaries(i) + 0.5, 'k', 'LineWidth', 1.5); % Align between bars
+    xline(subdomain_boundaries(i) + 0.5, 'k', 'LineWidth', 1.5);
 end
 
 % Formatting
 axis square;
 xlim([0, 105]);
-ylim([0, 1.5]);
+ylim([0, max(network_variances) + 0.1]);
+
+xlabel('Network Index');
+ylabel('Variance');
+title('Variance Differences Across Networks');
 
 hold off;
 
-
+% Save figure
+saveas(gcf, 'plots/m2_network_variance_comparison.png');
 
 
 
 %%
 
 
+%% ========================================================================
+%  Compute and Display Correlation Matrix for QPP Templates
+%  ========================================================================
 
-QPP_templates = {ADNI_NC_QPP, ADNI_MCI_QPP, ADNI_DAT_QPP, ADNI_uNC_pre_QPP_rev, ADNI_uNC_post_QPP, ADNI_pMCI_pre_QPP, ADNI_pMCI_post_QPP};
+% ========================================================================
+%  Load and Organize QPP Templates
+% ========================================================================
+%  The script retrieves QPP data from `QPP_templates` and ensures availability.
 
-% Concatenate all networks from each template
-allNetworks = [];
+% Define the ordered list of template names
+templateNames = {'ADNI_sNC_QPP', 'ADNI_sMCI_QPP', 'ADNI_sDAT_QPP', ...
+                 'ADNI_uNC_pre_QPP', 'ADNI_uNC_post_QPP', ...
+                 'ADNI_pMCI_pre_QPP', 'ADNI_pMCI_post_QPP'};
 
-for t = 1:length(QPP_templates)
-    % Extract the current template
-    currentQPP = QPP_templates{t}';
+numTemplates = numel(templateNames);  % Number of templates
 
-    % Append the entire network data for the template
-    allNetworks = [allNetworks, currentQPP];
-end
+% Initialize cell array to store template data
+templates = cell(1, numTemplates);
 
-% Compute the correlation matrix for all networks
-corrMatrix = corr(allNetworks);
-
-% Modify the matrix: lower triangular = correlation, upper triangular = absolute correlation
-absCorrMatrix = abs(corrMatrix); % Absolute correlation matrix
-for i = 1:size(corrMatrix, 1)
-    for j = i+1:size(corrMatrix, 2)
-        corrMatrix(i, j) = absCorrMatrix(i, j); % Set upper triangular to absolute values
-        corrMatrix(j, i) = corrMatrix(j, i); % Keep lower triangular as raw correlation
+% Extract templates dynamically
+for i = 1:numTemplates
+    templateName = templateNames{i};
+    if isfield(QPP_templates, templateName)
+        templates{i} = QPP_templates.(templateName); % Store the matrix
+    else
+        error('QPP template "%s" not found in QPP_templates.', templateName);
     end
 end
 
-% Plot the modified correlation matrix using imagesc
-figure;
-imagesc(corrMatrix);
-colorbar;
-colormap('jet');
-caxis([-1, 1]);
-
-% Add lines between templates
-hold on;
-templateSize = size(QPP_templates{1}, 1);
-for t = 1:length(QPP_templates) - 1
-    linePos = t * templateSize;
-    xline(linePos, 'k-', 'LineWidth', 4);
-    yline(linePos, 'k-', 'LineWidth', 4);
-end
-hold off;
-axis square;
-axis off;
-% Add title
-%title('Correlation Matrix with Lower = Correlation, Upper = Absolute Correlation');
-
-
-%%
-
-% Define network ROIs
-CB_rois = 1:13;
-VI_rois = 14:25;
-PL_rois = 26:36;
-SC_rois = 37:54;
-SM_rois = 55:68;
-HC_rois = 69:90;
-TN_rois = 91:105;
-
-
-%QPP_templates = {ADNI_NC_QPP, ADNI_MCI_QPP, ADNI_DAT_QPP, ADNI_uNC_pre_QPP_rev, ADNI_uNC_post_QPP, ADNI_pMCI_pre_QPP, ADNI_pMCI_post_QPP};
-QPP_templates = {ADNI_NC_QPP};
-
-% Concatenate all networks from each template
-allNetworks = [];
-
-for t = 1:length(QPP_templates)
-    % Extract the current template
-    currentQPP = QPP_templates{t}';
-
-    % Append the entire network data for the template
-    allNetworks = [allNetworks, currentQPP];
-end
-
-% Compute the correlation matrix for all networks
-corrMatrix = corr(allNetworks);
-
-% Modify the matrix: lower triangular = correlation, upper triangular = absolute correlation
-absCorrMatrix = abs(corrMatrix); % Absolute correlation matrix
-
-
-
-for i = 1:size(corrMatrix, 1)
-    for j = i+1:size(corrMatrix, 2)
-        corrMatrix(i, j) = absCorrMatrix(i, j); % Set upper triangular to absolute values
-        corrMatrix(j, i) = corrMatrix(j, i); % Keep lower triangular as raw correlation
-    end
-end
-
-
-
-% Plot the modified correlation matrix using imagesc
-figure;
-imagesc(corrMatrix);
-colorbar;
-colormap('jet');
-caxis([-1, 1]);
-
-% Add lines between templates
-hold on;
-templateSize = size(QPP_templates{1}, 1);
-for t = 1:length(QPP_templates) - 1
-    linePos = t * templateSize;
-    xline(linePos, 'k-', 'LineWidth', 4);
-    yline(linePos, 'k-', 'LineWidth', 4);
-end
-hold off;
-
-hold off;
-
-
-
-%%
-
-% Define subdomain ROIs
-CB_CB_rois = 1:13;
-VI_OT_rois = 14:19;
-VI_OC_rois = 20:25;
-PL_PL_rois = 26:36;
-SC_EH_rois = 37:39;
-SC_ET_rois = 40:45;
-SC_BG_rois = 46:54;
-SM_SM_rois = 55:68;
-HC_IT_rois = 69:75;
-HC_TP_rois = 76:80;
-HC_FR_rois = 81:90;
-TN_CE_rois = 91:93;
-TN_DN_rois = 94:101;
-TN_SN_rois = 102:105;
-
-% Define all subdomains
-subdomainRanges = {CB_CB_rois, VI_OT_rois, VI_OC_rois, PL_PL_rois, ...
-    SC_EH_rois, SC_ET_rois, SC_BG_rois, SM_SM_rois, HC_IT_rois, ...
-     HC_TP_rois, HC_FR_rois, TN_CE_rois, TN_DN_rois, TN_SN_rois};
-
-% Define network ROIs
-CB_rois = 1:13;
-VI_rois = 14:25;
-PL_rois = 26:36;
-SC_rois = 37:54;
-SM_rois = 55:68;
-HC_rois = 69:90;
-TN_rois = 91:105;
-
-% Define abbreviations for each network
-networkNames = {'CB', 'VI', 'PL', 'SC', 'SM', 'HC', 'TN'};
-networkRanges = {CB_rois, VI_rois, PL_rois, SC_rois, SM_rois, HC_rois, TN_rois};
-
-% Concatenate all networks from each template
-QPP_templates = {ADNI_pMCI_post_QPP(:,5:12)};
-allNetworks = [];
-
-for t = 1:length(QPP_templates)
-    % Extract the current template
-    currentQPP = QPP_templates{t}';
-    % Append the entire network data for the template
-    allNetworks = [allNetworks, currentQPP];
-end
-
-% Compute the correlation matrix for all networks
-corrMatrix = corr(allNetworks);
-
-% Modify the matrix: lower triangular = correlation, upper triangular = absolute correlation
-absCorrMatrix = abs(corrMatrix); % Absolute correlation matrix
-for i = 1:size(corrMatrix, 1)
-    for j = i+1:size(corrMatrix, 2)
-        corrMatrix(i, j) = corrMatrix(i, j); % Set upper triangular to absolute values
-        corrMatrix(j, i) = corrMatrix(j, i); % Keep lower triangular as raw correlation
-    end
-end
-
-% Plot the modified correlation matrix using imagesc
-figure;
-imagesc(A_minus_B);
-colorbar;
-colormap('jet');
-caxis([-1, 1]);
-hold on;
-
-% Add labels for networks
-for k = 1:length(networkRanges)
-    range = networkRanges{k};
-    middleIndex = mean(range); % Compute the middle index of the network range
-    % Add labels at the middle of the range for both x and y axes
-    text(middleIndex, -5, networkNames{k}, 'HorizontalAlignment', 'center', 'VerticalAlignment', 'top', 'FontSize', 12, 'FontWeight', 'bold'); % Bottom x-axis
-    text(-5, middleIndex, networkNames{k}, 'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'FontSize', 12, 'FontWeight', 'bold', 'Rotation', 90); % Left y-axis
-end
-
-% Add lines at the borders of subdomains
-for k = 1:length(subdomainRanges)
-    range = subdomainRanges{k};
-    borderStart = min(range) - 0.5; % Subtract 0.5 for proper alignment with grid
-    borderEnd = max(range) + 0.5; % Add 0.5 for proper alignment with grid
-
-    % Horizontal and vertical lines
-    line([borderStart, borderStart], [0.5, size(corrMatrix, 1) + 0.5], 'Color', 'k', 'LineWidth', 2.5); % Left vertical line
-    line([borderEnd, borderEnd], [0.5, size(corrMatrix, 1) + 0.5], 'Color', 'k', 'LineWidth', 2.5); % Right vertical line
-    line([0.5, size(corrMatrix, 2) + 0.5], [borderStart, borderStart], 'Color', 'k', 'LineWidth', 2.5); % Top horizontal line
-    line([0.5, size(corrMatrix, 2) + 0.5], [borderEnd, borderEnd], 'Color', 'k', 'LineWidth', 2.5); % Bottom horizontal line
-end
-
-axis square;
-axis off;
-hold off;
-
-
-
-%%
-
-% Define the QPP templates
-QPP_templates = {ADNI_NC_QPP, ADNI_MCI_QPP, ADNI_DAT_QPP, ...
-    ADNI_uNC_pre_QPP_rev, ADNI_uNC_post_QPP, ADNI_pMCI_pre_QPP, ADNI_pMCI_post_QPP};
-
-% Number of templates
-numTemplates = length(QPP_templates);
+% ========================================================================
+%  Compute Correlation Matrix for QPP Templates
+% ========================================================================
+%  This section calculates the correlation matrix across all QPP templates.
 
 % Initialize the correlation matrix
 corrMatrix = zeros(numTemplates, numTemplates);
 
-
 % Compute correlations
 for i = 1:numTemplates
     for j = 1:numTemplates
-        % Calculate the correlation between templates
-        corrValue = mean(mean(abs(corr(QPP_templates{i}', QPP_templates{j}'))));
-        corrMatrix(i, j) = corrValue;
+        % Compute the average absolute correlation between template networks
+        corrMatrix(i, j) = mean(mean(abs(corr(templates{i}', templates{j}'))));
     end
 end
 
@@ -623,114 +259,164 @@ end
 disp('Correlation Matrix:');
 disp(corrMatrix);
 
-% Define prognosis labels
-prognosisLabels = {'sNC', 'sMCI', 'sDAT', 'uNC-pre', 'uNC-post', 'pMCI-pre', 'pMCI-post'};
+% ========================================================================
+%  Compute Self-Correlation Differences
+% ========================================================================
+%  This section computes self-correlation minus present value differences.
 
-% Calculate the self-correlations (diagonal of the matrix)
+% Extract self-correlations from the diagonal
 selfCorr = diag(corrMatrix);
 
-% Create a matrix where self-correlation values are subtracted from the rest
-selfCorrMatrix = corrMatrix; % Initialize with the original
-for i = 1:size(corrMatrix, 1)
-    selfCorrMatrix(i, :) = selfCorr(i) - corrMatrix(i, :);
-end
+% Compute the matrix where self-correlation is subtracted from each row
+selfCorrMatrix = repmat(selfCorr, 1, numTemplates) - corrMatrix;
 
-% Plotting the results
+% ========================================================================
+%  Visualize Correlation Matrices
+% ========================================================================
 figure;
-%{
+
 % First subplot: Regular correlation matrix
 subplot(1, 2, 1);
 imagesc(corrMatrix);
-colormap(jet); % Set color scheme to jet
-colorbar; % Add color bar to show the scale
+colormap(jet); 
+colorbar;
 title('Correlation Matrix');
 xlabel('Templates');
 ylabel('Templates');
-axis square; % Make it square
-set(gca, 'XTick', 1:length(prognosisLabels), 'XTickLabel', prognosisLabels, ...
-         'YTick', 1:length(prognosisLabels), 'YTickLabel', prognosisLabels); % Set labels
-caxis([0, 1]); % Set color scale from 0 to 1
-
-
-%}
-
+axis square;
+set(gca, 'XTick', 1:numTemplates, 'XTickLabel', templateNames, ...
+         'YTick', 1:numTemplates, 'YTickLabel', templateNames);
+xtickangle(45);
+caxis([0, 1]); % Set color scale
 
 % Second subplot: Self-correlation minus present value
-%subplot(1, 2, 2);
+subplot(1, 2, 2);
 imagesc(selfCorrMatrix);
-colormap("autumn"); % Set color scheme to jet
-colorbar; % Add color bar to show the scale
-%title('Self-Corr Minus Present Value');
-%xlabel('Templates');
-%ylabel('Templates');
-%axis square; % Make it square
-set(gca, 'XTick', 1:length(prognosisLabels), 'XTickLabel', prognosisLabels, ...
-         'YTick', 1:length(prognosisLabels), 'YTickLabel', prognosisLabels); % Set labels
-caxis([0, .3]); % Set color scale from 0 to 1
+colormap("autumn");
+colorbar;
+title('Self-Corr Minus Present Value');
+xlabel('Templates');
+ylabel('Templates');
+axis square;
+set(gca, 'XTick', 1:numTemplates, 'XTickLabel', templateNames, ...
+         'YTick', 1:numTemplates, 'YTickLabel', templateNames);
+xtickangle(45);
+caxis([0, 0.3]); % Set color scale
+
+% Save figure
+saveas(gcf, 'plots/m2_qpp_template_correlation_analysis.png');
 
 
 
-%%
 
-% Define the QPP templates
-QPP_templates = {ADNI_NC_QPP, ADNI_MCI_QPP, ADNI_DAT_QPP, ...
-    ADNI_uNC_pre_QPP_rev, ADNI_uNC_post_QPP, ADNI_pMCI_pre_QPP, ADNI_pMCI_post_QPP};
+%% ========================================================================
+%  Compute and Display Full Correlation Matrices for QPP Templates
+%  ========================================================================
+%  This script computes full correlation matrices between QPP templates, 
+%  calculates self-correlation differences, and visualizes the results.
+%
 
-% Number of templates
-numTemplates = length(QPP_templates);
+% ========================================================================
+%  Load and Organize QPP Templates
+% ========================================================================
+%  The script retrieves QPP data from `QPP_templates` and ensures availability.
 
-% Initialize the 3D correlation matrices
-fullCorrMatrices = cell(numTemplates, numTemplates);
-selfCorrMatrices = cell(numTemplates, 1);
+% Define the ordered list of template names
+templateNames = {'ADNI_sNC_QPP', 'ADNI_sMCI_QPP', 'ADNI_sDAT_QPP', ...
+                 'ADNI_uNC_pre_QPP', 'ADNI_uNC_post_QPP', ...
+                 'ADNI_pMCI_pre_QPP', 'ADNI_pMCI_post_QPP'};
 
-% Compute the full correlation matrices
+numTemplates = numel(templateNames);  % Number of templates
+
+% Initialize cell array to store QPP data
+templates = cell(1, numTemplates);
+
+% Extract templates dynamically
 for i = 1:numTemplates
-    % Self-correlation for each template
-    selfCorrMatrices{i} = corr(QPP_templates{i}(:,5:12)', QPP_templates{i}(:,5:12)');
-    for j = 1:numTemplates
-        % Correlation between templates
-        fullCorrMatrices{i, j} = corr(QPP_templates{i}(:,5:12)', QPP_templates{j}(:,5:12)');
+    templateName = templateNames{i};
+    if isfield(QPP_templates, templateName)
+        templates{i} = QPP_templates.(templateName); % Store the matrix
+    else
+        error('QPP template "%s" not found in QPP_templates.', templateName);
     end
 end
 
-% Initialize the difference matrices
+% ========================================================================
+%  Compute Full and Self Correlation Matrices
+% ========================================================================
+%  This section calculates self-correlation and full correlation matrices
+%  between each pair of QPP templates.
+
+% Initialize storage for correlation matrices
+fullCorrMatrices = cell(numTemplates, numTemplates);
+selfCorrMatrices = cell(numTemplates, 1);
+
+% Compute correlation matrices
+for i = 1:numTemplates
+    % Self-correlation for each template
+    selfCorrMatrices{i} = corr(templates{i}(:,5:12)', templates{i}(:,5:12)');
+    
+    for j = 1:numTemplates
+        % Full correlation between different templates
+        fullCorrMatrices{i, j} = corr(templates{i}(:,5:12)', templates{j}(:,5:12)');
+    end
+end
+
+% ========================================================================
+%  Compute Self-Correlation Difference Matrices
+% ========================================================================
+%  This section calculates the difference between self-correlation and
+%  inter-template correlation matrices.
+
+% Initialize storage for difference matrices
 diffMatrices = cell(numTemplates, numTemplates);
 
-% Compute the difference from the self-correlation matrix
+% Compute difference from the self-correlation matrix
 for i = 1:numTemplates
     for j = 1:numTemplates
         diffMatrices{i, j} = selfCorrMatrices{i} - fullCorrMatrices{i, j};
     end
 end
 
-% Define prognosis labels
-prognosisLabels = {'sNC', 'sMCI', 'sDAT', 'uNC-pre', 'uNC-post', 'pMCI-pre', 'pMCI-post'};
+% ========================================================================
+%  Visualize Correlation Matrices
+% ========================================================================
 
-% Visualize the results
+% Example: Compare sNC vs sMCI (Index 1 vs Index 2)
+selected_i = 1; % Index for first template (e.g., sNC)
+selected_j = 2; % Index for second template (e.g., sMCI)
+
 figure;
 
-% Plot example: full correlation matrix (sNC with sMCI)
+% First subplot: Full correlation matrix between selected templates
 subplot(1, 2, 1);
-imagesc(fullCorrMatrices{1, 2}); % Change indices to visualize specific matrices
+imagesc(fullCorrMatrices{selected_i, selected_j});
 colormap(jet);
 colorbar;
-title('Full Correlation Matrix (sNC vs sMCI)');
+title(['Full Correlation Matrix (', templateNames{selected_i}, ' vs ', templateNames{selected_j}, ')']);
 xlabel('Timepoints/Features');
 ylabel('Timepoints/Features');
 axis square;
 
-% Plot example: difference matrix (sNC self-correlation minus sNC vs sMCI)
+% Second subplot: Difference matrix (Self correlation - full correlation)
 subplot(1, 2, 2);
-imagesc(diffMatrices{1, 2}); % Change indices to visualize specific matrices
+imagesc(diffMatrices{selected_i, selected_j});
 colormap(jet);
 colorbar;
-title('Difference Matrix (Self Corr - sNC vs sMCI)');
+title(['Difference Matrix (Self Corr - ', templateNames{selected_i}, ' vs ', templateNames{selected_j}, ')']);
 xlabel('Timepoints/Features');
 ylabel('Timepoints/Features');
 axis square;
 
+% Save figure
+saveas(gcf, 'plots/m2_qpp_full_correlation_comparison.png');
 
-%%
+
+
+
+%% ========================================================================
+%  Visualize Difference in Correlation Matrices
+% ========================================================================
 
 % Define the size of the individual matrices
 matrixSize = size(diffMatrices{1, 1}, 1); % Assuming all are 105x105
@@ -757,10 +443,6 @@ figure;
 imagesc(compositeMatrix);
 colormap(jet);
 colorbar;
-%title('Composite Plot of 7x7 Difference Matrices');
-%xlabel('Templates');
-%ylabel('Templates');
-%axis square;
 
 % Add gridlines to separate the 105x105 matrices
 hold on;
@@ -775,103 +457,12 @@ axis square;
 axis off
 hold off;
 
+saveas(gcf, 'plots/m2_qpp_difference_correlation_comparison.png'); 
 
 
-%%
-
-% Example matrices (replace with your actual matrices)
-matrix1 = abs(fullCorrMatrices{1,4}); % Matrix 1
-matrix2 = abs(fullCorrMatrices{1,5}); % Matrix 2
-matrix3 = abs(fullCorrMatrices{1,6}); % Matrix 2
-matrix4 = abs(fullCorrMatrices{1,7}); % Matrix 2
-
-
-% Generate example data
-group1 = mean(matrix1,2); % Replace with your actual group data
-group2 = mean(matrix2,2); % Replace with your actual group data
-group3 = mean(matrix3,2); % Replace with your actual group data
-group4 = mean(matrix4,2); % Replace with your actual group data
-
-% Combine data and create group labels
-data = [group1; group2; group3; group4];
-groups = [ones(105, 1); 2 * ones(105, 1); 3 * ones(105, 1); 4 * ones(105, 1)];
-
-% Perform Kruskal-Wallis test
-[p, tbl, stats] = kruskalwallis(data, groups, 'off'); % 'off' suppresses the plot
-disp(['Kruskal-Wallis p-value: ', num2str(p)]);
-
-
-
-% Flatten the matrices into vectors for pairwise testing
-values1 = matrix1(:);
-values2 = matrix2(:);
-values3 = matrix3(:);
-values4 = matrix4(:);
-
-% Combine the data and create group labels
-data = [values1; values2; values3; values4];
-groups = [ones(length(values1), 1); 2 * ones(length(values2), 1); 3 * ones(length(values3), 1); 4 * ones(length(values4), 1)];
-
-% Perform Kruskal-Wallis Test
-[p, tbl, stats] = kruskalwallis(data, groups, 'off');
-disp(['Kruskal-Wallis Test p-value: ', num2str(p)]);
-
-% Boxplot for visual comparison
-boxplot(data, groups, 'Labels', {'Matrix 1', 'Matrix 2', 'Matrix 3', 'Matrix 4'});
-ylabel('Values');
-title('Comparison of Matrix Distributions');
-
-
-%%
-
-% Example matrices (replace with your actual matrices)
-matrix1 = fullCorrMatrices{3,1}; % Matrix 1
-matrix2 = fullCorrMatrices{3,2}; % Matrix 2
-matrix3 = fullCorrMatrices{3,3}; % Matrix 3
-
-% Generate example data
-group1 = mean(matrix1,2); % Replace with your actual group data
-group2 = mean(matrix2,2); % Replace with your actual group data
-group3 = mean(matrix3,2); % Replace with your actual group data
-
-% Combine data and create group labels
-data = [group1; group2; group3];
-groups = [ones(length(group1), 1); 2 * ones(length(group2), 1); ...
-          3 * ones(length(group3), 1)];
-
-
-
-% Perform Kruskal-Wallis test
-[p, tbl, stats] = kruskalwallis(data, groups, 'off'); % 'off' suppresses the plot
-disp(['Kruskal-Wallis p-value: ', num2str(p)]);
-
-% Boxplot for visual comparison
-figure;
-boxplot(data, groups, 'Labels', {'sNC', 'sMCI', 'sDAT'});
-ylabel('Values');
-title('Comparison of Matrix Distributions');
-
-% Post-hoc analysis: Dunn test
-disp('--- Post-Hoc Analysis: Dunn Test ---');
-comparisons = multcompare(stats, 'CType', 'dunn-sidak', 'Display', 'off');
-disp('Pairwise comparisons using Dunn Test:');
-disp(array2table(comparisons, 'VariableNames', ...
-    {'Group 1', 'Group 2', 'Lower Bound', 'Difference', 'Upper Bound', 'p-value'}));
-
-% Post-hoc analysis: Pairwise Mann-Whitney U Tests
-disp('--- Post-Hoc Analysis: Pairwise Mann-Whitney U Tests ---');
-pairs = nchoosek(1:3, 2); % Generate all pairwise combinations of groups
-for i = 1:size(pairs, 1)
-    groupA = data(groups == pairs(i, 1)); % Group 1
-    groupB = data(groups == pairs(i, 2)); % Group 2
-    p_mwu = ranksum(groupA, groupB); % Mann-Whitney U test
-    fprintf('Comparison between Group %d and Group %d: p-value = %.4f\n', ...
-            pairs(i, 1), pairs(i, 2), p_mwu);
-end
-
-
-
-%%
+%% ========================================================================
+%  Statistical Test
+% ========================================================================
 
 % Example matrices (replace with your actual matrices)
 matrix1 = abs(fullCorrMatrices{1,4}); % Matrix 1
@@ -901,6 +492,8 @@ figure;
 boxplot(data, groups, 'Labels', {'uNC-pre', 'uNC-post', 'pMCI-pre', 'pMCI-post'});
 ylabel('Values');
 title('Comparison of Matrix Distributions');
+saveas(gcf, 'plots/m2_boxplot_means_visualization.png'); 
+
 
 % Post-hoc analysis: Dunn test
 disp('--- Post-Hoc Analysis: Dunn Test ---');
@@ -921,8 +514,9 @@ for i = 1:size(pairs, 1)
 end
 
 
-%%
-
+%% ========================================================================
+%  Visualization of ICN diffences 
+% ========================================================================
 
 % Define categories
 categories = {'sNC', 'sMCI', 'sDAT', 'uNC-PRE', 'uNC-POST', 'pMCI-PRE', 'pMCI-POST'};
@@ -1003,10 +597,16 @@ end
 % Set labels and title
 xticks(1:num_groups);
 xticklabels(categories);
-%xlabel('Group');
+xlabel('Group');
 ylabel('Mean Value');
-%title('Mean Values with Standard Deviations and Significance Asterisks (Custom Colors)');
+title('Mean Values with Standard Deviations and Significance Asterisks');
 legend(categories, 'Location', 'bestoutside');
 ylim([0, 0.38])
+saveas(gcf, 'plots/m2_qpp_correlation_ICN_significance.png'); 
+
 
 hold off;
+
+%% ========================================================================
+% EOF
+% ========================================================================
