@@ -4,6 +4,7 @@
 
 <p align="center">
   <img src="figures/ADNI_FULL_QPP_visualization.gif" alt="Visualization">
+  Repository corresponding to EMBC 2025 submission.
 </p>
 
 Repository corresponding to EMBC 2025 submission.
