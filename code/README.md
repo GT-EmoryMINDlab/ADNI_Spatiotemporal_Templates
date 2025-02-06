@@ -98,7 +98,6 @@ Below are example outputs from each section:
   *Histogram of time intervals between significant correlation events.*  
   ![Dwell Time Histogram](plots/m3_dwell_time_histogram.png)
 
-
 ---
 
 ## **4️⃣ Python Data Visualization**
@@ -108,3 +107,12 @@ It focuses on:
 - **Graphing projection values** over time.
 - **Visualizing changes** in QPP occurrences across different conditions.
 - **Comparing QPP activity** across different ADNI cohorts.
+
+### **Example Outputs**
+- **Longitudinal Transition Point Graph**  
+  *Visual representation of longitudinal changes in QPP projection values.*  
+  ![Longitudinal Transition Point Graph](../figures/figure_2_v5.png)
+
+- **QPP Projection Results**  
+  *QPP projection analysis across different timepoints and conditions.*  
+  ![QPP Projection Results](../figures/figure_6_v3.png)
