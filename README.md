@@ -1,5 +1,7 @@
+(Work in Progress as of 12/5/2025. Please come back after the New Year!)
+
 <p align="center">
-  <h1>Widespread Spatiotemporal Patterns of Functional Brain Networks in Longitudinal Progression of Alzheimer’s Disease</h1>
+  <h1>Spatiotemporal Network Dynamics Reveal Alzheimer’s Disease Progression</h1>
 </p>
 
 <p align="center">
